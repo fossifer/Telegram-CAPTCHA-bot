@@ -1,0 +1,47 @@
+import random
+
+
+class Challenge:
+    def __init__(self):
+        self._a = 0
+        self._b = 0
+        self._op = '+'
+        self._ans = 0
+        self._choices = []
+        self.new()
+
+    def __str__(self):
+        return '{a}{op}{b}=?'.format(a=self._a, b=self._b, op=self._op)
+
+    def new(self):
+        operation = random.choice(['+', '-', '*', '/'])
+        a, b, ans = 0, 0, 0
+        if operation in ['+', '-']:
+            a, b = random.randint(0, 50), random.randint(0, 50)
+            a, b = max(a, b), min(a, b)
+            ans = a+b if operation == '+' else a-b
+        elif operation == '*':
+            a, b = random.randint(0, 9), random.randint(0, 9)
+            ans = a*b
+        elif operation == '/':
+            a, b = random.randint(0, 9), random.randint(0, 9)
+            ans = a
+            a = a*b
+
+        cases = random.randint(3, 5)
+        choices = [ans] + [random.randint(0, 100) for i in range(cases-1)]
+        random.shuffle(choices)
+
+        self._a, self._b = a, b
+        self._op = operation
+        self._ans = ans
+        self._choices = choices
+
+    def qus(self):
+        return self.__str__()
+
+    def ans(self):
+        return self._ans
+
+    def choices(self):
+        return self._choices
