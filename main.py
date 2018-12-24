@@ -66,8 +66,13 @@ def challenge_user(bot, update):
     challenge = Challenge()
 
     def challenge_to_buttons(ch):
-        return [[InlineKeyboardButton(str(c), callback_data=str(c))]
+        choices = [[InlineKeyboardButton(str(c), callback_data=str(c))]
             for c in ch.choices()]
+        # manual approval/refusal by group admins
+        return choices + [[InlineKeyboardButton(
+            group_config['msg_approve_manually'], callback_data='+'),
+        InlineKeyboardButton(group_config['msg_refuse_manually'],
+            callback_data='-')]]
 
     timeout = group_config['challenge_timeout']
 
@@ -82,10 +87,9 @@ def challenge_user(bot, update):
         argument=(bot, msg.chat.id, msg.from_user.id, bot_msg.message_id))
 
     cch_lock.acquire()
-    current_challenges['{chat}|{user}|{msg}'.format(
+    current_challenges['{chat}|{msg}'.format(
         chat=msg.chat.id,
-        user=msg.from_user.id,
-        msg=bot_msg.message_id)] = (challenge, timeout_event)
+        msg=bot_msg.message_id)] = (challenge, msg.from_user.id, timeout_event)
     cch_lock.release()
 
 
@@ -97,12 +101,16 @@ def handle_challenge_timeout(bot, chat, user, bot_msg):
     config_lock.release()
 
     cch_lock.acquire()
-    del current_challenges['{chat}|{user}|{msg}'.format(
-        chat=chat, user=user, msg=bot_msg)]
+    del current_challenges['{chat}|{msg}'.format(chat=chat, msg=bot_msg)]
     cch_lock.release()
 
-    bot.edit_message_text(group_config['msg_challenge_failed'],
-        chat_id=chat, message_id=bot_msg, reply_markup=None)
+    try:
+        bot.edit_message_text(group_config['msg_challenge_failed'],
+            chat_id=chat, message_id=bot_msg, reply_markup=None)
+    except TelegramError:
+        # it is very possible that the message has been deleted
+        # so assume the case has been dealt by group admins, simply ignore it
+        return None
 
     if group_config['challenge_timeout_action'] == 'ban':
         bot.kick_chat_member(chat, user)
@@ -123,18 +131,62 @@ def handle_challenge_response(bot, update):
 
     chat = update.effective_chat.id
     user = update.effective_user.id
+    username = update.effective_user.name
     bot_msg = update.effective_message.message_id
 
     config_lock.acquire()
     group_config = config.get(str(chat), config['*'])
     config_lock.release()
 
-    ch_id = '{chat}|{user}|{msg}'.format(chat=chat, user=user, msg=bot_msg)
+    # handle manual approval/refusal by group admins
+    if query['data'] in ['+', '-']:
+        admins = bot.get_chat_administrators(chat)
+        # the creator case must be special judged
+        if not any([admin.user.id == user and (admin.can_restrict_members or admin.status == 'creator') for admin in admins]):
+            bot.answer_callback_query(callback_query_id=query['id'],
+                text=group_config['msg_permission_denied'])
+            return None
+
+        ch_id = '{chat}|{msg}'.format(chat=chat, msg=bot_msg)
+        cch_lock.acquire()
+        challenge, target, timeout_event = current_challenges.get(ch_id, (None, None, None))
+        del current_challenges[ch_id]
+        cch_lock.release()
+        challenge_sched.cancel(timeout_event)
+
+        if query['data'] == '+':
+            # lift the restriction
+            try:
+                bot.restrict_chat_member(chat, target,
+                    can_send_messages=True, can_send_media_messages=True,
+                    can_send_other_messages=True, can_add_web_page_previews=True)
+            except TelegramError:
+                bot.answer_callback_query(callback_query_id=query['id'],
+                    text=group_config['msg_bot_no_permission'])
+                return None
+            bot.edit_message_text(group_config['msg_approved'].format(user=username),
+                chat_id=chat, message_id=bot_msg, reply_mark=None)
+        else:  # query['data'] == '-'
+            try:
+                bot.kick_chat_member(chat, target)
+            except TelegramError:
+                bot.answer_callback_query(callback_query_id=query['id'],
+                    text=group_config['msg_bot_no_permission'])
+                return None
+            bot.edit_message_text(group_config['msg_refused'].format(user=username),
+                chat_id=chat, message_id=bot_msg, reply_mark=None)
+
+        bot.answer_callback_query(callback_query_id=query['id'])
+
+        return None
+
+
+    ch_id = '{chat}|{msg}'.format(chat=chat, msg=bot_msg)
     cch_lock.acquire()
-    challenge, timeout_event = current_challenges.get(ch_id, (None, None))
+    challenge, target, timeout_event = current_challenges.get(ch_id, (None, None, None))
     cch_lock.release()
 
-    if not challenge:
+    if user != target:
         bot.answer_callback_query(callback_query_id=query['id'],
             text=group_config['msg_challenge_not_for_you'])
         return None
@@ -147,7 +199,7 @@ def handle_challenge_response(bot, update):
 
     # lift the restriction
     try:
-        bot.restrict_chat_member(chat, user,
+        bot.restrict_chat_member(chat, target,
             can_send_messages=True, can_send_media_messages=True,
             can_send_other_messages=True, can_add_web_page_previews=True)
     except TelegramError:

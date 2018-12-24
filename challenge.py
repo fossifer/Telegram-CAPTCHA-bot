@@ -24,12 +24,14 @@ class Challenge:
             a, b = random.randint(0, 9), random.randint(0, 9)
             ans = a*b
         elif operation == '/':
-            a, b = random.randint(0, 9), random.randint(0, 9)
+            a, b = random.randint(0, 9), random.randint(1, 9)
             ans = a
             a = a*b
 
         cases = random.randint(3, 5)
-        choices = [ans] + [random.randint(0, 100) for i in range(cases-1)]
+        choices = random.sample(range(100), cases)
+        if ans not in choices:
+            choices[0] = ans
         random.shuffle(choices)
 
         self._a, self._b = a, b
