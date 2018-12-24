@@ -14,6 +14,13 @@
         "msg_challenge_passed": "您已通过验证，欢迎加入本群！\n如果仍然无法发言，请重启 Telegram 客户端。\n\nWelcome to this group! You have passed the CAPTCHA. If you cannot send messages, please restart the Telegram client.",
         "msg_challenge_mercy_passed": "虽然您答错了问题，但我们仍然认为您是人类，欢迎加入本群！\n如果仍然无法发言，请重启 Telegram 客户端。\n\nWelcome to this group! You chose a wrong button but we still recognize you as a human.\nIf you cannot send messages, please restart the Telegram client.",
         "msg_challenge_failed": "抱歉，您没有通过验证，如需解封请私聊本群群管。\n\nSorry but you failed the CAPTCHA. Please contact group admins for help.",
+        // manually approval/refusal messages
+        "msg_approve_manually": "人工通过",
+        "msg_refuse_manually": "人工拒绝",
+        "msg_permission_denied": "您的权限不足",
+        "msg_bot_no_permission": "操作失败，可能是机器人的权限不足",
+        "msg_approved": "您已被管理员 {user} 人工通过，欢迎加入本群！\n\nWelcome to this group! You were approved by {user} manually.",
+        "msg_refused": "该用户已被管理员 {user} 移除出群。\n\nThe user has been removed from group by {user}.",
         /* The maximum challenge time in seconds.
         If there are no response in this time, the user will be restricted/banned */
         "challenge_timeout": 180,
