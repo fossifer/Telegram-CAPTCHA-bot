@@ -11,12 +11,12 @@ A bot running on Telegram which will send CAPTCHA to verify if the new member is
 ## 安装与使用
 
 1. 请先向 [@BotFather](https://t.me/botfather) 申请一个 Bot API Token
-2. 在服务器上安装 python-telegram-bot: `pip install python-telegram-bot --upgrade`
+2. 在服务器上安装 python-telegram-bot: 
+`pip3 install python-telegram-bot --upgrade`
 3. 
 ``` 
 git clone https://github.com/Tooruchan/Telegram-CAPTCHA-bot 
 cd Telegram-CAPTCHA-bot
-mv
 ```
 4. 将 config.json 里的 token 字符串修改为你在 [@BotFather](https://t.me/botfather) 获取到的 API Token，你也可以对 config.json 里的内容酌情修改。
 5. 使用 `python3 main.py` 运行这个 bot,或者在 `/etc/systemd/system/ `下新建一个 .service 文件，使用 systemd 控制这个bot的运行，配置文件如下所示:
