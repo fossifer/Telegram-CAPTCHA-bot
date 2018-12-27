@@ -18,7 +18,7 @@ git clone https://github.com/Tooruchan/Telegram-CAPTCHA-bot
 cd Telegram-CAPTCHA-bot
 mv
 ```
-4. 将 config.json 里的 token 字符串修改为你在 [@BotFather](https://t.me/botfather) 获取到的 API Token
+4. 将 config.json 里的 token 字符串修改为你在 [@BotFather](https://t.me/botfather) 获取到的 API Token，你也可以对 config.json 里的内容酌情修改。
 5. 使用 `python3 main.py` 运行这个 bot,或者在 `/etc/systemd/system/ `下新建一个 .service 文件，使用 systemd 控制这个bot的运行，配置文件如下所示:
 ```
 [Unit]
