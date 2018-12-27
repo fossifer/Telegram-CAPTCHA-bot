@@ -105,7 +105,6 @@ def challenge_user(bot, update):
         reply_markup=InlineKeyboardMarkup(challenge_to_buttons(challenge)))
     # 给入群的用户发验证消息
 
-
     timeout_event = challenge_sched.enter(
         group_config['challenge_timeout'],
         10,
@@ -178,7 +177,7 @@ def handle_challenge_response(bot, update):
                 admin.user.id == user and
             (admin.can_restrict_members or admin.status == 'creator')
                 for admin in admins
-            # 如果不是创建者或者是管理员，就返回权限不足的提示
+                # 如果不是创建者或者是管理员，就返回权限不足的提示
         ]):
             bot.answer_callback_query(
                 callback_query_id=query['id'],
@@ -262,16 +261,56 @@ def handle_challenge_response(bot, update):
         # This my happen when the bot is deop-ed after the user join
         # and before the user click the button
         # TODO: design messages for this occation
-        bot.send_message(chat_id=chat,text='在给用户解除限制的过程中发生了错误，请管理员手动解除限制。')
+        bot.send_message(chat_id=chat, text='在给用户解除限制的过程中发生了错误，请管理员手动解除限制。')
         pass
 
     bot.answer_callback_query(callback_query_id=query['id'])
 
     # verify the ans
     correct = (str(challenge.ans()) == query['data'])
-    msg = 'msg_challenge_passed' if correct else 'msg_challenge_mercy_passed'
-    bot.edit_message_text(
-        group_config[msg], chat_id=chat, message_id=bot_msg, reply_mark=None)
+    # 非严格模式下
+
+    if correct:
+        msg = 'msg_challenge_passed'
+        bot.edit_message_text(
+            group_config[msg],
+            chat_id=chat,
+            message_id=bot_msg,
+            reply_mark=None)
+    else:
+        # 如果回答错误，进入严格模式和非严格模式的判断。
+        if group_config["use_strict_mode"] == False:
+            msg = 'msg_challenge_mercy_passed'
+            bot.edit_message_text(
+                group_config[msg],
+                chat_id=chat,
+                message_id=bot_msg,
+                reply_mark=None)
+        else:
+            # 启用了严格模式
+            try:
+                bot.edit_message_text(
+                    group_config['msg_challenge_failed'],
+                    chat_id=chat,
+                    message_id=bot_msg,
+                    reply_markup=None)
+            except TelegramError:
+                # it is very possible that the message has been deleted
+                # so assume the case has been dealt by group admins, simply ignore it
+                return None
+
+            if group_config['challenge_timeout_action'] == 'ban':
+                bot.kick_chat_member(chat, user)
+            else:  # restrict
+                # assume that the user is already restricted (when joining the group)
+                pass
+
+            if group_config['delete_failed_challenge']:
+                challenge_sched.enter(
+                    group_config['delete_failed_challenge_interval'],
+                    1,
+                    bot.delete_message,
+                    argument=(chat, bot_msg))
 
     if group_config['delete_passed_challenge']:
         challenge_sched.enter(

@@ -17,6 +17,7 @@
         "challenge_timeout_action": "restrict",
         "delete_passed_challenge": false,
         "delete_passed_challenge_interval": 30,
-        "delete_failed_challenge": false
+        "delete_failed_challenge": false,
+        "use_strict_mode": true
     }
 }
