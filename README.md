@@ -22,7 +22,7 @@ cd Telegram-CAPTCHA-bot
 5. 使用 `python3 main.py` 运行这个 bot,或者在 `/etc/systemd/system/ `下新建一个 .service 文件，使用 systemd 控制这个bot的运行，配置文件如下所示:
 ```
 [Unit]
-Description=Rust RSS Bot Push Service
+Description=YJSNPI 114514 service
 After=network-online.target
 Wants=network-online.target
 
