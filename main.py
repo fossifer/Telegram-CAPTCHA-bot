@@ -310,6 +310,13 @@ def handle_challenge_response(bot, update):
                     chat_id=chat,
                     message_id=bot_msg,
                     reply_markup=None)
+                bot.restrict_chat_member(
+                    chat,
+                    target,
+                    can_send_messages=False,
+                    can_send_media_messages=False,
+                    can_send_other_messages=False,
+                    can_add_web_page_previews=False)
                 bot.send_message(
                     chat_id=int(channel),
                     text='User ' + str(target) +
