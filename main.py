@@ -15,6 +15,7 @@ logging.basicConfig(
 config, config_lock = dict(), threading.Lock()
 updater = None
 dispatcher = None
+channel = None
 # Key: chat_id + '|' + user_id + '|' + msg_id
 # Value: (challenge object, event object)
 current_challenges, cch_lock = dict(), threading.Lock()
@@ -34,7 +35,7 @@ def load_config():
 
 def save_config():
     config_lock.acquire()
-    with open('config.json', 'w', encoding='utf-8') as f:
+    with open('config.json', 'w') as f:
         json.dump(config, f, indent=4)
     config_lock.release()
 
@@ -72,7 +73,7 @@ def challenge_user(bot, update):
         bot.send_message(
             chat_id=msg.chat.id,
             text=
-            '请在群中将本bot设置为管理员，以便能够对入群的用户进行验证。\n\nPlease add this bot as admin, or it can\'t verifye new users.'
+            '请在群中将本bot设置为管理员，以便能够对入群的用户进行验证。\n\nPlease add this bot as admin, or it can\'t verify new users.'
         )
         return None
 
@@ -261,7 +262,6 @@ def handle_challenge_response(bot, update):
         # This my happen when the bot is deop-ed after the user join
         # and before the user click the button
         # TODO: design messages for this occation
-        bot.send_message(chat_id=chat, text='在给用户解除限制的过程中发生了错误，请管理员手动解除限制。')
         pass
 
     bot.answer_callback_query(callback_query_id=query['id'])
@@ -277,6 +277,7 @@ def handle_challenge_response(bot, update):
             chat_id=chat,
             message_id=bot_msg,
             reply_mark=None)
+        bot.send_message(chat_id=int(channel),text='User '+str(target)+' has passed the captcha \nGroup id:'+str(chat))
     else:
         # 如果回答错误，进入严格模式和非严格模式的判断。
         if group_config["use_strict_mode"] == False:
@@ -286,6 +287,7 @@ def handle_challenge_response(bot, update):
                 chat_id=chat,
                 message_id=bot_msg,
                 reply_mark=None)
+            bot.send_message(chat_id=int(channel),text='User '+str(target)+' has mercyfully passed the captcha\nGroup id:'+str(chat))
         else:
             # 启用了严格模式
             try:
@@ -294,6 +296,7 @@ def handle_challenge_response(bot, update):
                     chat_id=chat,
                     message_id=bot_msg,
                     reply_markup=None)
+                bot.send_message(chat_id=int(channel),text='User '+str(target)+' has failed the captcha\nGroup id:'+str(chat)+' \nreason:Wrong answer.')
             except TelegramError:
                 # it is very possible that the message has been deleted
                 # so assume the case has been dealt by group admins, simply ignore it
@@ -321,10 +324,11 @@ def handle_challenge_response(bot, update):
 
 
 def main():
-    global updater, dispatcher
+    global updater, dispatcher,channel
 
     load_config()
     updater = Updater(config['token'])
+    channel = config['channel']
     dispatcher = updater.dispatcher
 
     challenge_handler = MessageHandler(Filters.status_update.new_chat_members,
