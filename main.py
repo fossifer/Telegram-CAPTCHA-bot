@@ -329,6 +329,9 @@ def handle_challenge_response(bot, update):
 
             if group_config['challenge_timeout_action'] == 'ban':
                 bot.kick_chat_member(chat, user)
+            elif group_config['challenge_timeout_action'] == 'kick':
+                bot.kick_chat_member(chat, user)
+                bot.unban_chat_member(chat, user)
             else:  # restrict
                 # assume that the user is already restricted (when joining the group)
                 pass
