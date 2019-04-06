@@ -166,10 +166,8 @@ def lift_restriction(bot, chat, target):
     # use 35 here for safety
     if member.until_date and member.status == 'restricted' and member.until_date < time.time()+35:
         member.can_send_messages = member.can_send_media_messages = True
-        member.can_send_other_messages = menber.can_add_web_page_previews = True
+        member.can_send_other_messages = member.can_add_web_page_previews = True
         member.until_date = None
-    print(member.can_send_media_messages == False)
-    print(type(member.can_send_media_messages))
     try:
         bot.restrict_chat_member(chat, target, until_date=member.until_date,
             can_send_messages=member.can_send_messages,
