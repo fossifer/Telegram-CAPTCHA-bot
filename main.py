@@ -287,7 +287,7 @@ def main():
     global updater, dispatcher
 
     load_config()
-    updater = Updater(config['token'], request_kwargs={'proxy_url': 'http://127.0.0.1:8001'})
+    updater = Updater(config['token'])
     dispatcher = updater.dispatcher
 
     challenge_handler = MessageHandler(Filters.status_update.new_chat_members,
