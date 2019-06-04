@@ -5,7 +5,6 @@ import time
 import sched
 import logging
 import threading
-from time import time, sleep
 from challenge import Challenge
 from telegram import ChatMember, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Updater, MessageHandler, CallbackQueryHandler, Filters
@@ -20,10 +19,7 @@ dispatcher = None
 # Key: chat_id + '|' + msg_id
 # Value: (challenge object, int (target user id), event object)
 current_challenges, cch_lock = dict(), threading.Lock()
-# Key: chat_id + '|' + user_id
-# Value: Telegram ChatMember object
-user_previous_restrictions, upr_lock = dict(), threading.Lock()
-challenge_sched = sched.scheduler(time, sleep)
+challenge_sched = sched.scheduler(time.time, time.sleep)
 
 
 def save_delete_message(bot, *args, **kwarg):
@@ -64,13 +60,6 @@ def challenge_user(bot, update):
                 text=group_config['msg_self_introduction'])
             config_lock.release()
         return None
-
-    # get previous restriction data
-    member = bot.get_chat_member(msg.chat.id, msg.from_user.id)
-    upr_lock.acquire()
-    user_previous_restrictions['{chat}|{user}'.format(
-        chat=msg.chat.id, user=msg.from_user.id)] = member
-    upr_lock.release()
 
     # Attempt to restrict the user
     try:
@@ -150,30 +139,10 @@ def handle_challenge_timeout(bot, chat, user, bot_msg):
 
 
 def lift_restriction(bot, chat, target):
-    # restore the restriction to what its original state
-    upr_lock.acquire()
-    member = user_previous_restrictions.get('{chat}|{user}'.format(chat=chat, user=target))
-    upr_lock.release()
-    if not member:
-        member = ChatMember(None, '', until_date=None, 
+    try:
+        bot.restrict_chat_member(chat, target,
             can_send_messages=True, can_send_media_messages=True,
             can_send_other_messages=True, can_add_web_page_previews=True)
-    else:
-        upr_lock.acquire()
-        del user_previous_restrictions['{chat}|{user}'.format(chat=chat, user=target)]
-        upr_lock.release()
-    # if until_date - now < 30 seconds the restriction would be infinite
-    # use 35 here for safety
-    if member.until_date and member.status == 'restricted' and member.until_date < time.time()+35:
-        member.can_send_messages = member.can_send_media_messages = True
-        member.can_send_other_messages = member.can_add_web_page_previews = True
-        member.until_date = None
-    try:
-        bot.restrict_chat_member(chat, target, until_date=member.until_date,
-            can_send_messages=member.can_send_messages,
-            can_send_media_messages=member.can_send_media_messages,
-            can_send_other_messages=member.can_send_other_messages,
-            can_add_web_page_previews=member.can_add_web_page_previews)
     except TelegramError as e:
         raise e
 
@@ -236,12 +205,6 @@ def handle_challenge_response(bot, update):
             except BadRequest:   # message to edit not found
                 pass
 
-            upr_lock.acquire()
-            member = user_previous_restrictions.get('{chat}|{user}'.format(chat=chat, user=target))
-            if member:
-                del user_previous_restrictions['{chat}|{user}'.format(chat=chat, user=target)]
-            upr_lock.release()
-
         bot.answer_callback_query(callback_query_id=query['id'])
 
         return None
@@ -262,21 +225,27 @@ def handle_challenge_response(bot, update):
     del current_challenges[ch_id]
     cch_lock.release()
 
-    try:
-        lift_restriction(bot, chat, target)
-    except TelegramError:
-        # This my happen when the bot is deop-ed after the user join
-        # and before the user click the button
-        # TODO: design messages for this occation
-        pass
-
     bot.answer_callback_query(callback_query_id=query['id'])
 
     # verify the ans
     correct = (str(challenge.ans()) == query['data'])
-    msg = 'msg_challenge_passed' if correct else 'msg_challenge_mercy_passed'
-    bot.edit_message_text(group_config[msg],
-        chat_id=chat, message_id=bot_msg, reply_mark=None)
+    if correct or not group_config.get('challenge_strict_mode'):
+        try:
+            lift_restriction(chat, target)
+        except TelegramError:
+            # This my happen when the bot is deop-ed after the user join
+            # and before the user click the button
+            # TODO: design messages for this occation
+            pass
+        msg = 'msg_challenge_passed' if correct else 'msg_challenge_mercy_passed'
+    else:
+        msg = 'msg_challenge_failed'
+
+    try:
+        bot.edit_message_text(group_config[msg],
+            chat_id=chat, message_id=bot_msg, reply_mark=None)
+    except BadRequest:
+        pass
 
     if group_config['delete_passed_challenge']:
         challenge_sched.enter(group_config['delete_passed_challenge_interval'],
@@ -287,7 +256,13 @@ def main():
     global updater, dispatcher
 
     load_config()
-    updater = Updater(config['token'])
+    proxy = config.get('proxy', {})
+    request_kwargs = None
+    if proxy:
+        # note that you may need `pip install python-telegram-bot[socks]`
+        import socks
+        request_kwargs = {'proxy_url': f'http://{proxy.get('address')}:{proxy.get('port')}/',}
+    updater = Updater(config['token'], request_kwargs=request_kwargs)
     dispatcher = updater.dispatcher
 
     challenge_handler = MessageHandler(Filters.status_update.new_chat_members,
@@ -301,12 +276,12 @@ def main():
     def run_sched():
         while True:
             challenge_sched.run(blocking=False)
-            sleep(1)
+            time.sleep(1)
 
     threading.Thread(target=run_sched, name="run_challenge_sched").start()
     while True:
         try:
-            sleep(600)
+            time.sleep(600)
         except KeyboardInterrupt:
             save_config()
             exit(0)

@@ -1,6 +1,14 @@
 {
     // Your bot token (contact @BotFather to get one) goes here
     "token": "",
+    // https://core.telegram.org/api/obtaining_api_id
+    "api_id": 123456,
+    "api_hash": "",
+    // Proxy settings (only SOCKS5 proxy is supported currently)
+    "proxy": {
+        "address": "127.0.0.1",
+        "port": 1080
+    }
     // Group id, "*" for default settings
     "*": {
         // This message is sent when bot is invited to a group
@@ -21,7 +29,11 @@
         "msg_bot_no_permission": "操作失败，可能是机器人的权限不足",
         "msg_approved": "您已被管理员 {user} 人工通过，欢迎加入本群！\n\nWelcome to this group! You were approved by {user} manually.",
         "msg_refused": "该用户已被管理员 {user} 移除出群。\n\nThe user has been removed from group by {user}.",
-        /* The maximum challenge time in seconds.
+        /* Set this to true if a correct answer is required to get unrestricted.
+        A wrong answer will cause the restrict remaining unchanged.
+        Recommended if your group is suffering a lot of bots having ability to randomly click buttons */
+        "challenge_strict_mode": false,
+        /* The maximum challenge responding time in seconds.
         If there are no response in this time, the user will be restricted/banned */
         "challenge_timeout": 180,
         /* What to do when a user failed the challenge

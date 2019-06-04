@@ -28,11 +28,14 @@ class Challenge:
             ans = a
             a = a*b
 
-        cases = random.randint(3, 5)
+        cases = 6
         choices = random.sample(range(100), cases)
         if ans not in choices:
             choices[0] = ans
-        random.shuffle(choices)
+        random.shuffle()
+        # Some bots just blindly click the first button
+        if choices[0] == ans:
+            choices[0], choices[1] = choices[1], choices[0]
 
         self._a, self._b = a, b
         self._op = operation
