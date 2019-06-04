@@ -84,7 +84,7 @@ async def challenge_user(event):
                 member = member.participant
                 user_previous_restrictions[key] = member
             except errors.UserNotParticipantError:
-                logging.warning(f'UserNotParticipantError on challenge_user: user={user.id}, chat={chat.id}')
+                logging.warning(f'UserNotParticipantError on challenge_user: user={target.id}, chat={chat.id}')
 
     # Attempt to restrict the user
     try:
