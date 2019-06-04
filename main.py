@@ -2,237 +2,288 @@ import os
 import sys
 import json
 import time
-import sched
+import asyncio
 import logging
-import threading
 from challenge import Challenge
-from telegram import ChatMember, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Updater, MessageHandler, CallbackQueryHandler, Filters
-from telegram.error import TelegramError, BadRequest, TimedOut
+from telethon import TelegramClient, events, errors
+from telethon.tl.functions.channels import EditBannedRequest, DeleteMessagesRequest, GetParticipantRequest
+from telethon.tl.functions.messages import EditMessageRequest
+from telethon.tl.types import ChatBannedRights, KeyboardButtonCallback
 
 logging.basicConfig(level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-config, config_lock = dict(), threading.Lock()
+config, config_lock = dict(), asyncio.Lock()
+bot = None
 updater = None
 dispatcher = None
 # Key: chat_id + '|' + msg_id
-# Value: (challenge object, int (target user id), event object)
-current_challenges, cch_lock = dict(), threading.Lock()
-challenge_sched = sched.scheduler(time.time, time.sleep)
-
-
-def save_delete_message(bot, *args, **kwarg):
-    try:
-        bot.delete_message(*args, **kwarg)
-    except BadRequest:  # msg to delete not found
-        pass
+# Value: (challenge object, int (target user id), coroutine object)
+current_challenges, cch_lock = dict(), asyncio.Lock()
+# Key: chat_id + '|' + user_id
+# Value: Telegram ChannelParticipant object
+user_previous_restrictions, upr_lock = dict(), asyncio.Lock()
 
 
 def load_config():
     global config
-    config_lock.acquire()
     with open('config.json', encoding='utf-8') as f:
         config = json.load(f)
-    config_lock.release()
 
 
 def save_config():
-    config_lock.acquire()
     with open('config.json', 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4)
-    config_lock.release()
 
 
-def challenge_user(bot, update):
+async def safe_delete_message(delay, *args, **kwarg):
+    await asyncio.sleep(delay)
+    try:
+        await bot(DeleteMessagesRequest(*args, **kwarg))
+    except errors.BadRequestError:  # msg to delete not found
+        pass
+
+
+load_config()
+proxy = config.get('proxy', {})
+if proxy:
+    import socks
+    proxy = (socks.SOCKS5, proxy.get('address'), proxy.get('port'))
+    bot = TelegramClient('bot', config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['token'])
+else:
+    bot = TelegramClient('bot', config['api_id'], config['api_hash']).start(bot_token=config['token'])
+
+
+@bot.on(events.ChatAction())
+async def challenge_user(event):
     global config, current_challenges
 
-    msg = update.message
-    if not msg.new_chat_members:
+    chat = event.chat
+    target = event.user
+
+    if event.user_added:
+        me = await bot.get_me()
+        if me.id in event.user_ids:
+            async with config_lock:
+                group_config = config.get(str(event.chat.id), config['*'])
+                await event.respond(message=group_config['msg_self_introduction'])
         return None
-    target = msg.new_chat_members[0]
-    # Invited by others
-    if msg.from_user != target:
-        if bot.get_me() in msg.new_chat_members:
-            config_lock.acquire()
-            group_config = config.get(str(msg.chat.id), config['*'])
-            bot.send_message(chat_id=msg.chat.id,
-                text=group_config['msg_self_introduction'])
-            config_lock.release()
+    elif not event.user_joined:
         return None
+
+    # get previous restriction data
+    async with upr_lock:
+        key = '{chat}|{user}'.format(chat=chat.id, user=target.id)
+        # a record probably means the user didn't pass the challenge previously
+        # (and is fully restricted)
+        # this time they leave & rejoin the group in order to pass the test
+        # so we won't update the record which is likely fully restricted
+        if not user_previous_restrictions.get(key):
+            try:
+                member = await bot(GetParticipantRequest(chat, target))
+                member = member.participant
+                user_previous_restrictions[key] = member
+            except errors.UserNotParticipantError:
+                logging.warning(f'UserNotParticipantError on challenge_user: user={user.id}, chat={chat.id}')
 
     # Attempt to restrict the user
     try:
-        bot.restrict_chat_member(msg.chat.id, msg.from_user.id)
-    except TelegramError:
-        # maybe the bot does not have the privilege, so skip
+        await bot(EditBannedRequest(chat, target, ChatBannedRights(
+            until_date=None, view_messages=None,
+            send_messages=True, send_media=True, send_stickers=True,
+            send_gifs=True, send_games=True, send_inline=True,
+            send_polls=True, embed_links=True, invite_users=True
+        )))
+    except errors.ChatAdminRequiredError:
         return None
 
-    config_lock.acquire()
-    group_config = config.get(str(msg.chat.id), config['*'])
-    config_lock.release()
+    async with config_lock:
+        group_config = config.get(str(chat.id), config['*'])
 
     challenge = Challenge()
 
     def challenge_to_buttons(ch):
-        choices = [[InlineKeyboardButton(str(c), callback_data=str(c))]
-            for c in ch.choices()]
+        # There can be 8 buttons per row at most (more are ignored).
+        buttons = [KeyboardButtonCallback(text=str(c), data=str(c)) for c in ch.choices()]
+        choices = [buttons[i*8:i*8+8] for i in range((len(buttons)+7)//8)]
         # manual approval/refusal by group admins
-        return choices + [[InlineKeyboardButton(
-            group_config['msg_approve_manually'], callback_data='+'),
-        InlineKeyboardButton(group_config['msg_refuse_manually'],
-            callback_data='-')]]
+        choices.extend([[KeyboardButtonCallback(text=group_config['msg_approve_manually'], data='+'),
+            KeyboardButtonCallback(text=group_config['msg_refuse_manually'], data='-')]])
+        return choices
 
     timeout = group_config['challenge_timeout']
 
     try:
-        bot_msg = bot.send_message(chat_id=msg.chat.id,
-            text=group_config['msg_challenge'].format(
-                timeout=timeout, challenge=challenge.qus()),
-            reply_to_message_id=msg.message_id,
-            reply_markup=InlineKeyboardMarkup(challenge_to_buttons(challenge)))
-    except BadRequest:  # msg to reply not found
-        bot_msg = bot.send_message(chat_id=msg.chat.id,
-            text=group_config['msg_challenge'].format(
-                timeout=timeout, challenge=challenge.qus()),
-            reply_markup=InlineKeyboardMarkup(challenge_to_buttons(challenge)))
+        bot_msg_id = await event.reply(message=group_config['msg_challenge'].format(
+            timeout=timeout, challenge=challenge.qus()), buttons=challenge_to_buttons(challenge))
+        bot_msg_id = bot_msg_id.id
+    except errors.BadRequestError:  # msg to reply not found
+        bot_msg_id = await event.respond(message=group_config['msg_challenge'].format(
+            timeout=timeout, challenge=challenge.qus()), buttons=challenge_to_buttons(challenge))
+        bot_msg_id = bot_msg_id.id
 
-    timeout_event = challenge_sched.enter(group_config['challenge_timeout'],
-        10, handle_challenge_timeout,
-        argument=(bot, msg.chat.id, msg.from_user.id, bot_msg.message_id))
+    timeout_event = asyncio.create_task(
+        handle_challenge_timeout(group_config['challenge_timeout'], chat, target, bot_msg_id))
 
-    cch_lock.acquire()
-    current_challenges['{chat}|{msg}'.format(
-        chat=msg.chat.id,
-        msg=bot_msg.message_id)] = (challenge, msg.from_user.id, timeout_event)
-    cch_lock.release()
-
-
-def handle_challenge_timeout(bot, chat, user, bot_msg):
-    global config, current_challenges
-
-    config_lock.acquire()
-    group_config = config.get(str(chat), config['*'])
-    config_lock.release()
-
-    cch_lock.acquire()
-    del current_challenges['{chat}|{msg}'.format(chat=chat, msg=bot_msg)]
-    cch_lock.release()
+    async with cch_lock:
+        current_challenges['{chat}|{msg}'.format(
+            chat=chat.id,
+            msg=bot_msg_id)] = (challenge, target.id, timeout_event)
 
     try:
-        bot.edit_message_text(group_config['msg_challenge_failed'],
-            chat_id=chat, message_id=bot_msg, reply_markup=None)
-    except TelegramError:
+        await timeout_event
+    except asyncio.CancelledError:
+        pass
+
+
+async def handle_challenge_timeout(delay, chat, user, bot_msg):
+    global config, current_challenges
+
+    await asyncio.sleep(delay)
+
+    async with config_lock:
+        group_config = config.get(str(chat.id), config['*'])
+
+    async with cch_lock:
+        del current_challenges['{chat}|{msg}'.format(chat=chat.id, msg=bot_msg)]
+
+    try:
+        # note that the arg name is 'reply_markup', not 'buttons'
+        await bot(EditMessageRequest(message=group_config['msg_challenge_failed'],
+            peer=chat, id=bot_msg, reply_markup=None))
+    except errors.BadRequestError:
         # it is very possible that the message has been deleted
         # so assume the case has been dealt by group admins, simply ignore it
         return None
 
     if group_config['challenge_timeout_action'] == 'ban':
-        bot.kick_chat_member(chat, user)
+        await bot(EditBannedRequest(chat, user,
+            ChatBannedRights(until_date=None, view_messages=True)))
     else:  # restrict
         # assume that the user is already restricted (when joining the group)
         pass
 
     if group_config['delete_failed_challenge']:
-        challenge_sched.enter(group_config['delete_failed_challenge_interval'],
-            1, save_delete_message, argument=(bot, chat, bot_msg))
+        await asyncio.create_task(
+            safe_delete_message(group_config['delete_failed_challenge_interval'], channel=chat, id=[bot_msg]))
 
 
-def lift_restriction(bot, chat, target):
+async def lift_restriction(chat, target):
+    # restore the restriction to what its original state
+    async with upr_lock:
+        key = '{chat}|{user}'.format(chat=chat.id, user=target)
+        member = user_previous_restrictions.get(key)
+        if member:
+            del user_previous_restrictions[key]
     try:
-        bot.restrict_chat_member(chat, target,
-            can_send_messages=True, can_send_media_messages=True,
-            can_send_other_messages=True, can_add_web_page_previews=True)
-    except TelegramError as e:
+        rights = member.banned_rights
+    except AttributeError:
+        rights = ChatBannedRights(until_date=None)
+    # if until_date - now < 30 seconds the restriction would be infinite,
+    # so we kindly unban them slightly ahead of schedule
+    # use 35 here for safety
+    if rights.until_date and rights.until_date.timestamp() < time.time()+35:
+        rights = ChatBannedRights(until_date=None)
+    try:
+        await bot(EditBannedRequest(chat, target, rights))
+    except errors.RPCError as e:
         raise e
 
 
-def handle_challenge_response(bot, update):
+@bot.on(events.CallbackQuery())
+async def handle_challenge_response(event):
     global config, current_challenges
 
-    query = update['callback_query']
-    user_ans = query['data']
+    user_ans = event.data.decode()
 
-    chat = update.effective_chat.id
-    user = update.effective_user.id
-    username = update.effective_user.name
-    bot_msg = update.effective_message.message_id
+    chat = event.chat
+    user = await event.get_sender()
+    username = '@'+user.username if user.username else (user.first_name +
+        (' ' + user.last_name if user.last_name else ''))
+    bot_msg = event.message_id
 
-    config_lock.acquire()
-    group_config = config.get(str(chat), config['*'])
-    config_lock.release()
+    async with config_lock:
+        group_config = config.get(str(chat.id), config['*'])
 
     # handle manual approval/refusal by group admins
-    if query['data'] in ['+', '-']:
-        admins = bot.get_chat_administrators(chat)
-        # the creator case must be special judged
-        if not any([admin.user.id == user and (admin.can_restrict_members or admin.status == 'creator') for admin in admins]):
-            bot.answer_callback_query(callback_query_id=query['id'],
-                text=group_config['msg_permission_denied'])
-            return None
-
-        ch_id = '{chat}|{msg}'.format(chat=chat, msg=bot_msg)
-        cch_lock.acquire()
-        challenge, target, timeout_event = current_challenges.get(ch_id, (None, None, None))
+    if user_ans in ['+', '-']:
         try:
-            del current_challenges[ch_id]
-        except KeyError:
+            participant = await bot(GetParticipantRequest(channel=chat, user_id=user))
+            participant = participant.participant
+        except errors.UserNotParticipantError:
+            logging.warning(f'UserNotParticipantError on handle_challenge_response: user={user.id}, chat={chat.id}')
+            await event.answer(message=group_config['msg_permission_denied'])
             return None
-        cch_lock.release()
-        challenge_sched.cancel(timeout_event)
+        can_ban = False
+        try:
+            if participant.admin_rights.ban_users:
+                can_ban = True
+        except AttributeError:
+            pass
+        if not can_ban:
+            await event.answer(message=group_config['msg_permission_denied'])
+            return None
 
-        if query['data'] == '+':
+        ch_id = '{chat}|{msg}'.format(chat=chat.id, msg=bot_msg)
+        async with cch_lock:
+            challenge, target, timeout_event = current_challenges.get(ch_id, (None, None, None))
             try:
-                lift_restriction(bot, chat, target)
-            except TelegramError:
-                bot.answer_callback_query(callback_query_id=query['id'],
-                    text=group_config['msg_bot_no_permission'])
+                del current_challenges[ch_id]
+            except KeyError:
+                return None
+        timeout_event.cancel()
+
+        if user_ans == '+':
             try:
-                bot.edit_message_text(group_config['msg_approved'].format(user=username),
-                    chat_id=chat, message_id=bot_msg, reply_mark=None)
-            except BadRequest:   # message to edit not found
+                await lift_restriction(chat, target)
+            except errors.ChatAdminRequiredError:
+                await event.answer(message=group_config['msg_bot_no_permission'])
+            try:
+                await event.edit(text=group_config['msg_approved'].format(user=username), 
+                    buttons=None)
+            except errors.BadRequestError:   # message to edit not found
                 pass
-        else:  # query['data'] == '-'
+        else:  # user_ans == '-'
             try:
-                bot.kick_chat_member(chat, target)
-            except TelegramError:
-                bot.answer_callback_query(callback_query_id=query['id'],
-                    text=group_config['msg_bot_no_permission'])
+                await bot(EditBannedRequest(chat, target, ChatBannedRights(until_date=None, view_messages=True)))
+            except errors.ChatAdminRequiredError:
+                await event.answer(message=group_config['msg_bot_no_permission'])
                 return None
             try:
-                bot.edit_message_text(group_config['msg_refused'].format(user=username),
-                    chat_id=chat, message_id=bot_msg, reply_mark=None)
-            except BadRequest:   # message to edit not found
+                await event.edit(text=group_config['msg_refused'].format(user=username),
+                    buttons=None)
+            except errors.BadRequestError:   # message to edit not found
                 pass
 
-        bot.answer_callback_query(callback_query_id=query['id'])
+            async with upr_lock:
+                member = user_previous_restrictions.get('{chat}|{user}'.format(chat=chat.id, user=target))
+                if member:
+                    del user_previous_restrictions['{chat}|{user}'.format(chat=chat.id, user=target)]
 
+        await event.answer()
         return None
 
-    ch_id = '{chat}|{msg}'.format(chat=chat, msg=bot_msg)
-    cch_lock.acquire()
-    challenge, target, timeout_event = current_challenges.get(ch_id, (None, None, None))
-    cch_lock.release()
+    ch_id = '{chat}|{msg}'.format(chat=chat.id, msg=bot_msg)
+    async with cch_lock:
+        challenge, target, timeout_event = current_challenges.get(ch_id, (None, None, None))
 
-    if user != target:
-        bot.answer_callback_query(callback_query_id=query['id'],
-            text=group_config['msg_challenge_not_for_you'])
+    if user.id != target:
+        await event.answer(message=group_config['msg_challenge_not_for_you'])
         return None
 
-    challenge_sched.cancel(timeout_event)
+    timeout_event.cancel()
 
-    cch_lock.acquire()
-    del current_challenges[ch_id]
-    cch_lock.release()
+    async with cch_lock:
+        del current_challenges[ch_id]
 
-    bot.answer_callback_query(callback_query_id=query['id'])
+    await event.answer()
 
     # verify the ans
-    correct = (str(challenge.ans()) == query['data'])
+    correct = (str(challenge.ans()) == user_ans)
     if correct or not group_config.get('challenge_strict_mode'):
         try:
-            lift_restriction(chat, target)
-        except TelegramError:
+            await lift_restriction(chat, target)
+        except errors.ChatAdminRequiredError:
             # This my happen when the bot is deop-ed after the user join
             # and before the user click the button
             # TODO: design messages for this occation
@@ -241,55 +292,17 @@ def handle_challenge_response(bot, update):
     else:
         msg = 'msg_challenge_failed'
 
-    try:
-        bot.edit_message_text(group_config[msg],
-            chat_id=chat, message_id=bot_msg, reply_mark=None)
-    except BadRequest:
-        pass
+    await event.edit(text=group_config[msg], buttons=None)
 
     if group_config['delete_passed_challenge']:
-        challenge_sched.enter(group_config['delete_passed_challenge_interval'],
-            5, save_delete_message, argument=(bot, chat, bot_msg))
+        await asyncio.create_task(
+            safe_delete_message(group_config['delete_passed_challenge_interval'], channel=chat, id=[bot_msg]))
 
 
 def main():
-    global updater, dispatcher
-
-    load_config()
-    proxy = config.get('proxy', {})
-    request_kwargs = None
-    if proxy:
-        # note that you may need `pip install python-telegram-bot[socks]`
-        import socks
-        request_kwargs = {'proxy_url': f'http://{proxy.get('address')}:{proxy.get('port')}/',}
-    updater = Updater(config['token'], request_kwargs=request_kwargs)
-    dispatcher = updater.dispatcher
-
-    challenge_handler = MessageHandler(Filters.status_update.new_chat_members,
-        challenge_user)
-    callback_handler = CallbackQueryHandler(handle_challenge_response)
-    dispatcher.add_handler(challenge_handler)
-    dispatcher.add_handler(callback_handler)
-
-    updater.start_polling()
-
-    def run_sched():
-        while True:
-            challenge_sched.run(blocking=False)
-            time.sleep(1)
-
-    threading.Thread(target=run_sched, name="run_challenge_sched").start()
-    while True:
-        try:
-            time.sleep(600)
-        except KeyboardInterrupt:
-            save_config()
-            exit(0)
-        except TimedOut:
-            save_config()
-            # try to restart
-            logging.getLogger().info('Caught a Telegram TimedOut error, restarting...')
-            os.execl(sys.executable, os.path.abspath(__file__), *sys.argv)
+    bot.run_until_disconnected()
+    
+    save_config()
 
 
 if __name__ == '__main__':
