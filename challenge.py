@@ -32,7 +32,7 @@ class Challenge:
         choices = random.sample(range(100), cases)
         if ans not in choices:
             choices[0] = ans
-        random.shuffle()
+        random.shuffle(choices)
         # Some bots just blindly click the first button
         if choices[0] == ans:
             choices[0], choices[1] = choices[1], choices[0]

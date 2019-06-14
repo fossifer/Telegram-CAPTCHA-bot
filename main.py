@@ -280,6 +280,7 @@ async def handle_challenge_response(event):
 
     # verify the ans
     correct = (str(challenge.ans()) == user_ans)
+    delete = None
     if correct or not group_config.get('challenge_strict_mode'):
         try:
             await lift_restriction(chat, target)
@@ -289,14 +290,14 @@ async def handle_challenge_response(event):
             # TODO: design messages for this occation
             pass
         msg = 'msg_challenge_passed' if correct else 'msg_challenge_mercy_passed'
+        if correct:
+            if group_config['delete_passed_challenge']:
+                delete = asyncio.create_task(safe_delete_message(group_config['delete_passed_challenge_interval'], channel=chat, id=[bot_msg]))
     else:
         msg = 'msg_challenge_failed'
 
     await event.edit(text=group_config[msg], buttons=None)
-
-    if group_config['delete_passed_challenge']:
-        await asyncio.create_task(
-            safe_delete_message(group_config['delete_passed_challenge_interval'], channel=chat, id=[bot_msg]))
+    if delete: await delete
 
 
 def main():
