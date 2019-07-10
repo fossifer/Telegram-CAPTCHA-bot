@@ -156,11 +156,19 @@ async def handle_challenge_timeout(delay, chat, user, bot_msg):
         # so assume the case has been dealt by group admins, simply ignore it
         return None
 
-    if group_config['challenge_timeout_action'] == 'ban':
-        await bot(EditBannedRequest(chat, user,
-            ChatBannedRights(until_date=None, view_messages=True)))
-    else:  # restrict
-        # assume that the user is already restricted (when joining the group)
+    try:
+        if group_config['challenge_timeout_action'] == 'ban':
+            await bot(EditBannedRequest(chat, user,
+                ChatBannedRights(until_date=None, view_messages=True)))
+        elif group_config['challenge_timeout_action'] == 'kick':
+            await bot(EditBannedRequest(chat, user,
+                ChatBannedRights(until_date=None, view_messages=True)))
+            await bot(EditBannedRequest(chat, user, ChatBannedRights(until_date=None)))
+        else:  # restrict
+            # assume that the user is already restricted (when joining the group)
+            pass
+    except errors.ChatAdminRequiredError:
+        # lose our privilege between villain joining and timeout
         pass
 
     if group_config['delete_failed_challenge']:
