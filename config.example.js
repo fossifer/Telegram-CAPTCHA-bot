@@ -37,7 +37,7 @@
         If there are no response in this time, the user will be restricted/banned */
         "challenge_timeout": 180,
         /* What to do when a user failed the challenge
-        the value can be "restrict" or "ban" */
+        the value can be "restrict", "kick" (allow re-joining) or "ban" */
         "challenge_timeout_action": "restrict",
         // Delete challenges or not after the interval in seconds
         "delete_passed_challenge": true,

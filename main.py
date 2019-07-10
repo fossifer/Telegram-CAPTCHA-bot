@@ -127,10 +127,19 @@ def handle_challenge_timeout(bot, chat, user, bot_msg):
         # so assume the case has been dealt by group admins, simply ignore it
         return None
 
-    if group_config['challenge_timeout_action'] == 'ban':
-        bot.kick_chat_member(chat, user)
-    else:  # restrict
-        # assume that the user is already restricted (when joining the group)
+    try:
+        if group_config['challenge_timeout_action'] == 'ban':
+            bot.kick_chat_member(chat, user)
+        elif group_config['challenge_timeout_action'] == 'kick':
+            bot.kick_chat_member(chat, user)
+            bot.restrict_chat_member(chat, user,
+                can_send_messages=True, can_send_media_messages=True,
+                can_send_other_messages=True, can_add_web_page_previews=True)
+        else:  # restrict
+            # assume that the user is already restricted (when joining the group)
+            pass
+    except TelegramError:
+        # lose our privilege between villain joining and timeout
         pass
 
     if group_config['delete_failed_challenge']:
