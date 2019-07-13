@@ -42,7 +42,7 @@
         // Delete challenges or not after the interval in seconds
         "delete_passed_challenge": true,
         "delete_passed_challenge_interval": 15,
-        "delete_failed_challenge": false
+        "delete_failed_challenge": false,
         "delete_failed_challenge_interval": 180
     }
 }
