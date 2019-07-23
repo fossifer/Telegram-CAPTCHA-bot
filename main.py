@@ -177,7 +177,7 @@ async def handle_challenge_timeout(delay, chat, user, bot_msg):
 
 
 async def lift_restriction(chat, target):
-    # restore the restriction to what its original state
+    # restore the restriction to its original state
     async with upr_lock:
         key = '{chat}|{user}'.format(chat=chat.id, user=target)
         member = user_previous_restrictions.get(key)
