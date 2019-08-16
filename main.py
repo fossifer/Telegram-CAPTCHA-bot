@@ -6,9 +6,9 @@ import asyncio
 import logging
 from challenge import Challenge
 from telethon import TelegramClient, events, errors
-from telethon.tl.functions.channels import EditBannedRequest, DeleteMessagesRequest, GetParticipantRequest
+from telethon.tl.functions.channels import DeleteMessagesRequest, EditBannedRequest, GetParticipantRequest
 from telethon.tl.functions.messages import EditMessageRequest
-from telethon.tl.types import ChatBannedRights, KeyboardButtonCallback
+from telethon.tl.types import ChatBannedRights, ChannelParticipantCreator, KeyboardButtonCallback
 
 logging.basicConfig(level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -224,7 +224,7 @@ async def handle_challenge_response(event):
             return None
         can_ban = False
         try:
-            if participant.admin_rights.ban_users:
+            if participant.admin_rights.ban_users or type(participant) is ChannelParticipantCreator:
                 can_ban = True
         except AttributeError:
             pass
