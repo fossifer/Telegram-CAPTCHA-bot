@@ -224,7 +224,7 @@ async def handle_challenge_response(event):
             return None
         can_ban = False
         try:
-            if participant.admin_rights.ban_users or type(participant) is ChannelParticipantCreator:
+            if type(participant) is ChannelParticipantCreator or participant.admin_rights.ban_users:
                 can_ban = True
         except AttributeError:
             pass
