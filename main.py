@@ -15,8 +15,6 @@ logging.basicConfig(level=logging.INFO,
 
 config, config_lock = dict(), asyncio.Lock()
 bot = None
-updater = None
-dispatcher = None
 # Key: chat_id + '|' + msg_id
 # Value: (challenge object, int (target user id), coroutine object)
 current_challenges, cch_lock = dict(), asyncio.Lock()
@@ -36,7 +34,7 @@ def save_config():
         json.dump(config, f, indent=4)
 
 
-async def safe_delete_message(delay, *args, **kwarg):
+async def safe_delete_message(bot, delay, *args, **kwarg):
     await asyncio.sleep(delay)
     try:
         await bot(DeleteMessagesRequest(*args, **kwarg))
@@ -44,20 +42,11 @@ async def safe_delete_message(delay, *args, **kwarg):
         pass
 
 
-load_config()
-proxy = config.get('proxy', {})
-if proxy:
-    import socks
-    proxy = (socks.SOCKS5, proxy.get('address'), proxy.get('port'))
-    bot = TelegramClient('bot', config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['token'])
-else:
-    bot = TelegramClient('bot', config['api_id'], config['api_hash']).start(bot_token=config['token'])
-
-
-@bot.on(events.ChatAction())
+@events.register(events.ChatAction())
 async def challenge_user(event):
     global config, current_challenges
 
+    bot = event.client
     chat = event.chat
     target = event.user
 
@@ -123,7 +112,7 @@ async def challenge_user(event):
         bot_msg_id = bot_msg_id.id
 
     timeout_event = asyncio.create_task(
-        handle_challenge_timeout(group_config['challenge_timeout'], chat, target, bot_msg_id))
+        handle_challenge_timeout(bot, group_config['challenge_timeout'], chat, target, bot_msg_id))
 
     async with cch_lock:
         current_challenges['{chat}|{msg}'.format(
@@ -136,7 +125,7 @@ async def challenge_user(event):
         pass
 
 
-async def handle_challenge_timeout(delay, chat, user, bot_msg):
+async def handle_challenge_timeout(bot, delay, chat, user, bot_msg):
     global config, current_challenges
 
     await asyncio.sleep(delay)
@@ -173,10 +162,10 @@ async def handle_challenge_timeout(delay, chat, user, bot_msg):
 
     if group_config['delete_failed_challenge']:
         await asyncio.create_task(
-            safe_delete_message(group_config['delete_failed_challenge_interval'], channel=chat, id=[bot_msg]))
+            safe_delete_message(bot, group_config['delete_failed_challenge_interval'], channel=chat, id=[bot_msg]))
 
 
-async def lift_restriction(chat, target):
+async def lift_restriction(bot, chat, target):
     # restore the restriction to its original state
     async with upr_lock:
         key = '{chat}|{user}'.format(chat=chat.id, user=target)
@@ -198,12 +187,13 @@ async def lift_restriction(chat, target):
         raise e
 
 
-@bot.on(events.CallbackQuery())
+@events.register(events.CallbackQuery())
 async def handle_challenge_response(event):
     global config, current_challenges
 
     user_ans = event.data.decode()
 
+    bot = event.client
     chat = event.chat
     user = await event.get_sender()
     username = '@'+user.username if user.username else (user.first_name +
@@ -243,7 +233,7 @@ async def handle_challenge_response(event):
 
         if user_ans == '+':
             try:
-                await lift_restriction(chat, target)
+                await lift_restriction(bot, chat, target)
             except errors.ChatAdminRequiredError:
                 await event.answer(message=group_config['msg_bot_no_permission'])
             try:
@@ -291,7 +281,7 @@ async def handle_challenge_response(event):
     delete = None
     if correct or not group_config.get('challenge_strict_mode'):
         try:
-            await lift_restriction(chat, target)
+            await lift_restriction(bot, chat, target)
         except errors.ChatAdminRequiredError:
             # This my happen when the bot is deop-ed after the user join
             # and before the user click the button
@@ -300,7 +290,7 @@ async def handle_challenge_response(event):
         msg = 'msg_challenge_passed' if correct else 'msg_challenge_mercy_passed'
         if correct:
             if group_config['delete_passed_challenge']:
-                delete = asyncio.create_task(safe_delete_message(group_config['delete_passed_challenge_interval'], channel=chat, id=[bot_msg]))
+                delete = asyncio.create_task(safe_delete_message(bot, group_config['delete_passed_challenge_interval'], channel=chat, id=[bot_msg]))
     else:
         msg = 'msg_challenge_failed'
 
@@ -308,11 +298,36 @@ async def handle_challenge_response(event):
     if delete: await delete
 
 
-def main():
-    bot.run_until_disconnected()
-    
-    save_config()
+async def main():
+    load_config()
+    proxy = config.get('proxy', {})
+    if proxy:
+        import socks
+        proxy = (socks.SOCKS5, proxy.get('address'), proxy.get('port'))
+        bot = TelegramClient('bot', config['api_id'], config['api_hash'], proxy=proxy, connection_retries=0)
+    else:
+        bot = TelegramClient('bot', config['api_id'], config['api_hash'], connection_retries=0)
+    bot.add_event_handler(challenge_user)
+    bot.add_event_handler(handle_challenge_response)
+
+    wait_time = 1
+    while True:
+        start_time = time.time()
+        try:
+            await bot.start(bot_token=config['token'])
+            await bot.run_until_disconnected()
+        except ConnectionError:
+            if time.time()-start_time < 2:
+                wait_time = min(wait_time*2, 256)
+            else:
+                wait_time = 1
+            logging.info(f'Reconnect after {wait_time} seconds...')
+            time.sleep(wait_time)
+            continue
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        save_config()
