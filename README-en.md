@@ -17,9 +17,10 @@ If api_id and api_hash are missing, this `archive` branch can be an alternative 
 ### Installing and Running
 
 ```
-pip3 install telethon PySocks --upgrade
 git clone https://github.com/lziad/Telegram-CAPTCHA-bot 
 cd Telegram-CAPTCHA-bot
+python3 -m venv ./venv
+pip3 install -r requirements.txt
 cp config.example.js config.json
 ```
 Then edit config.json as your wish. Don't forget to fill in `token`, `api_id` and `api_hash` and delete all the comment lines. Finally just run main.py, for example

@@ -17,9 +17,10 @@
 ### 安装并运行
 
 ```
-pip3 install telethon PySocks --upgrade
 git clone https://github.com/lziad/Telegram-CAPTCHA-bot 
 cd Telegram-CAPTCHA-bot
+python3 -m venv ./venv
+pip3 install -r requirements.txt
 cp config.example.js config.json
 ```
 之后修改 config.json，填入 `token`、`api_id`、`api_hash` 并根据需要修改群组设定，并去除所有注释行。完成后运行 main.py 即可，例如
