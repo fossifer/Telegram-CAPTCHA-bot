@@ -20,6 +20,7 @@ If api_id and api_hash are missing, this `archive` branch can be an alternative 
 git clone https://github.com/lziad/Telegram-CAPTCHA-bot 
 cd Telegram-CAPTCHA-bot
 python3 -m venv ./venv
+source ./venv/bin/activate
 pip3 install -r requirements.txt
 cp config.example.js config.json
 ```
