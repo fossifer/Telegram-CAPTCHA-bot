@@ -9,7 +9,7 @@
         "address": "127.0.0.1",
         "port": 1080
     }
-    // Group id, "*" for default settings
+    // Group id with quotes, "*" for default settings
     "*": {
         // This message is sent when bot is invited to a group
         "msg_self_introduction": "大家好，感谢使用本机器人。\n\n我负责排除掉讨厌的广告机器人，赋予我群管中的 Ban users 权限即可开始使用，移除权限即可停用。新用户加群时我会暂时将其禁言，并出一道小学二年级水平的口算题，列出几个选项让用户选择。因为我比较仁慈，所以用户只要点击按钮即可获得解封，甚至不需要答对。\n\n我不会收集群里的消息，源代码是公开的，如果您对我的功能不满意，可以点击我的头像查看 bio 中的源代码链接，修改并运行您自己的机器人。",
@@ -45,6 +45,7 @@
         "delete_failed_challenge": false,
         "delete_failed_challenge_interval": 180
     }
+    // Change "zh_TW" to your group id with quotes
     "zh_TW": {
         "msg_self_introduction": "大家好，感謝使用本機器人。\n\n我負責排除掉討厭的廣告機器人，賦予我群組管理管中的 Ban users 權限即可開始使用，移除權限即可停用。新用戶加入群組時我會暫時將其禁止發言，並出一道小學二年級難度的算術題目，列出幾個選項讓用戶選擇。因為我比較仁慈，所以用戶只要點選按鈕即可獲得解鎖，甚至不需要答對。\n\n我不會收集群組裡的訊息，程式的原始碼是公開的，如果您對我的功能不滿意，可以點選我的頭像檢視 bio 中的原始碼連結，修改並運行您自己的機器人。",
         "msg_challenge_not_for_you": "這次驗證並不針對您",
@@ -58,6 +59,29 @@
         "msg_bot_no_permission": "操作失敗，可能是機器人的權限不足",
         "msg_approved": "您已被管理員 {user} 人工通過，歡迎加入本群組！\n\nWelcome to this group! You were approved by {user} manually.",
         "msg_refused": "該用戶已被管理員 {user} 移除出群組。\n\nThe user has been removed from group by {user}.",
+        "challenge_strict_mode": false,
+        "challenge_timeout": 180,
+        "challenge_timeout_action": "restrict",
+        "delete_passed_challenge": true,
+        "delete_passed_challenge_interval": 15,
+        "delete_failed_challenge": false,
+        "delete_failed_challenge_interval": 180
+    },
+    // Change "yue" to your group id with quotes
+    "yue": {
+        // tbd
+        "msg_self_introduction": "大家好，感谢使用本机器人。\n\n我负责排除掉讨厌的广告机器人，赋予我群管中的 Ban users 权限即可开始使用，移除权限即可停用。新用户加群时我会暂时将其禁言，并出一道小学二年级水平的口算题，列出几个选项让用户选择。因为我比较仁慈，所以用户只要点击按钮即可获得解封，甚至不需要答对。\n\n我不会收集群里的消息，源代码是公开的，如果您对我的功能不满意，可以点击我的头像查看 bio 中的源代码链接，修改并运行您自己的机器人。",
+        "msg_challenge_not_for_you": "呢次驗證唔係針對您",
+        "msg_challenge": "您好，我哋開左驗證功能，請喺 {timeout} 秒內撳下面嘅掣嚟完成驗證：\n{challenge}\n\nHi! The group has enabled CAPTCHA, please click one of the buttons to answer the following question:\n{challenge}",
+        "msg_challenge_passed": "您已經成功通過驗證，歡迎您嘅加入！\n如果仲係講唔到嘢，試下重啟 Telegram 客戶端啦。\n\nWelcome to this group! You have passed the CAPTCHA. If you cannot send messages, please restart the Telegram client.",
+        "msg_challenge_mercy_passed": "雖然你答錯咗，但係我哋仍然認為你係人類，歡迎您嘅加入！\n如果仲係講唔到嘢，試下重啟 Telegram 客戶端啦。\n\nWelcome to this group! You chose a wrong button but we still recognize you as a human.\nIf you cannot send messages, please restart the Telegram client.",
+        "msg_challenge_failed": "對唔住，你通過唔到驗證，如果你係真人，請私訊聯繫群管。\n\nSorry but you failed the CAPTCHA. Please contact group admins for help.",
+        "msg_approve_manually": "俾佢入嚟",
+        "msg_refuse_manually": "踢佢出去",
+        "msg_permission_denied": "您唔係管理員",
+        "msg_bot_no_permission": "操作錯誤，可能係機器人唔夠權限",
+        "msg_approved": "閣下已經俾管理員 {user} 人工通過，歡迎您嘅加入！\n\nWelcome to this group! You were approved by {user} manually.",
+        "msg_refused": "呢個用戶已經被管理員 {user} 踢出本群。\n\nThe user has been removed from group by {user}.",
         "challenge_strict_mode": false,
         "challenge_timeout": 180,
         "challenge_timeout_action": "restrict",
