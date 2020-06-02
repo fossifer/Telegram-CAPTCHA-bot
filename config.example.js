@@ -90,10 +90,9 @@
         "delete_failed_challenge": false,
         "delete_failed_challenge_interval": 180
     },
-    // Change "yue" to your group id with quotes
+    // Change "cdo" to your group id with quotes
     "cdo": {
-        // tbd
-            "msg_self_introduction": "大家儂好。謝謝各儂選擇本机器儂。\n\n廣告機器儂盡討厭，仱我會負責共伊逐去。乞我群組管理裡勢其 Ban users 權限，我就會開始工作；以後除迨者權限，我就會停下。新其用戶裡來，我先儥讓伊講話，出蜀芘小學二年級水平其算學題，下底攖幾隻答案乞用戶揀。我哩比較好心，在伊揀底蜀隻我都讓伊過，無管伊有賺無賺。\n\n我伓收集羣裡勢其消息，源代碼是公開其。汝㑚儥滿意我其功能，會使篤我其頭像，看 bio 裡勢其源代碼鏈接，修改囇再運行汝自家其机器儂。",
+        "msg_self_introduction": "大家儂好。謝謝各儂選擇本机器儂。\n\n廣告機器儂盡討厭，仱我會負責共伊逐去。乞我群組管理裡勢其 Ban users 權限，我就會開始工作；以後除迨者權限，我就會停下。新其用戶裡來，我先儥讓伊講話，出蜀芘小學二年級水平其算學題，下底攖幾隻答案乞用戶揀。我哩比較好心，在伊揀底蜀隻我都讓伊過，無管伊有賺無賺。\n\n我伓收集羣裡勢其消息，源代碼是公開其。汝㑚儥滿意我其功能，會使篤我其頭像，看 bio 裡勢其源代碼鏈接，修改囇再運行汝自家其机器儂。",
         "msg_challenge_not_for_you": "這回驗證共汝無干過",
         "msg_challenge": "汝好，儂家開了驗證功能，請着 {timeout} 秒之內，篤下底其數字，完成驗證：\n{challenge}Nṳ̄ hō̤, nàng-gā kŭi lāu ngiêng-céng gŭng-nèng, chiāng diŏh {timeout} miēu cĭ-nó̤i, dók â-dā̤ gì só-cê, uòng-sìng ngiêng-céng:\n{challenge}\n\nHi! The group has enabled CAPTCHA, please click one of the buttons to answer the following question:\n{challenge}",
         "msg_challenge_passed": "汝已經通過驗證，歡迎加裡！\n汝㑚故是無辦法講話，關去 Telegram 客戶端再開起就會使。\n\nNṳ̄ ī-gĭng tŭng-guó ngiêng-céng, huăng-ngìng gă-diē! \nNṳ̄ nâ gó-sê mò̤ bâing-huák gōng-uâ, guŏng kó̤ Telegram káik-hô-duăng cái kŭi kī cêu â̤-sāi.\n\nWelcome to this group! You have passed the CAPTCHA. If you cannot send messages, please restart the Telegram client.",
