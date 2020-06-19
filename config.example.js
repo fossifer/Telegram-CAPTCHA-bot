@@ -70,7 +70,7 @@
     // Change "yue" to your group id with quotes
     "yue": {
         // tbd
-        "msg_self_introduction": "大家好，好多謝使用本機械人。\n\n我負責篩走啲廣告機械人，只要俾我 Ban users 嘅群管權限，我就會開始工作。如果唔想再用我，就撤銷我嘅權限啦。我會將啱啱入嚟嘅人禁言，然後出一條小學二年級嘅數學題，畀幾個選項佢揀。因為我係個仁慈嘅機械人，所以只要有㩒掣，我就會俾佢通過，甚至唔使答啱。\n\n我唔會收集群組內既訊息，原始碼已經公開咗喺GitHub，如果您對我既功能唔滿意，可以㩒我嘅頭像睇吓 bio 入面既link，修改同運行您自己嘅機械人。",
+        "msg_self_introduction": "大家好，多謝使用呢隻機械人。\n\n我負責篩走啲廣告機械人，只要俾我 Ban users 嘅群管權限，我就會開始工作。如果唔想再用我，就撤銷我嘅權限啦。我會將啱啱入嚟嘅人禁言，然後出一條小學二年級嘅數學題，畀幾個選項佢揀。因為我係個仁慈嘅機械人，所以只要有㩒掣，我就會俾佢通過，甚至唔使答啱。\n\n我唔會收集群組內既訊息，原始碼已經公開咗喺GitHub，如果您對我既功能唔滿意，可以㩒我嘅頭像睇吓 bio 入面既link，修改同運行您自己嘅機械人。",
         "msg_challenge_not_for_you": "呢次驗證唔係針對您",
         "msg_challenge": "您好，我哋開左驗證功能，請喺 {timeout} 秒內撳下面嘅掣嚟完成驗證：\n{challenge}\n\nHi! The group has enabled CAPTCHA, please click one of the buttons to answer the following question:\n{challenge}",
         "msg_challenge_passed": "您已經成功通過驗證，歡迎您嘅加入！\n如果仲係講唔到嘢，試下重啟 Telegram 客戶端啦。\n\nWelcome to this group! You have passed the CAPTCHA. If you cannot send messages, please restart the Telegram client.",
