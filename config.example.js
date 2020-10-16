@@ -70,7 +70,7 @@
     // Change "yue" to your group id with quotes
     "yue": {
         // tbd
-        "msg_self_introduction": "大家好，感谢使用本机器人。\n\n我负责排除掉讨厌的广告机器人，赋予我群管中的 Ban users 权限即可开始使用，移除权限即可停用。新用户加群时我会暂时将其禁言，并出一道小学二年级水平的口算题，列出几个选项让用户选择。因为我比较仁慈，所以用户只要点击按钮即可获得解封，甚至不需要答对。\n\n我不会收集群里的消息，源代码是公开的，如果您对我的功能不满意，可以点击我的头像查看 bio 中的源代码链接，修改并运行您自己的机器人。",
+        "msg_self_introduction": "大家好，多謝使用呢隻機械人。\n\n我負責篩走啲廣告機械人，只要俾我 Ban users 嘅群管權限，我就會開始工作。如果唔想再用我，就撤銷我嘅權限啦。我會將啱啱入嚟嘅人禁言，然後出一條小學二年級嘅數學題，畀幾個選項佢揀。因為我係個仁慈嘅機械人，所以只要有撳掣，我就會俾佢通過，甚至唔需要答啱條問題。\n\n我唔會收集群組內既訊息，原始碼已經公開咗喺GitHub，如果您對我嘅功能唔滿意，可以撳我嘅頭像睇吓 bio 入面既link，修改同運行您自己嘅機械人。",
         "msg_challenge_not_for_you": "呢次驗證唔係針對您",
         "msg_challenge": "您好，我哋開左驗證功能，請喺 {timeout} 秒內撳下面嘅掣嚟完成驗證：\n{challenge}\n\nHi! The group has enabled CAPTCHA, please click one of the buttons to answer the following question:\n{challenge}",
         "msg_challenge_passed": "您已經成功通過驗證，歡迎您嘅加入！\n如果仲係講唔到嘢，試下重啟 Telegram 客戶端啦。\n\nWelcome to this group! You have passed the CAPTCHA. If you cannot send messages, please restart the Telegram client.",
@@ -79,7 +79,7 @@
         "msg_approve_manually": "俾佢入嚟",
         "msg_refuse_manually": "踢佢出去",
         "msg_permission_denied": "您唔係管理員",
-        "msg_bot_no_permission": "操作錯誤，可能係機器人唔夠權限",
+        "msg_bot_no_permission": "操作錯誤，可能係機械人唔夠權限",
         "msg_approved": "閣下已經俾管理員 {user} 人工通過，歡迎您嘅加入！\n\nWelcome to this group! You were approved by {user} manually.",
         "msg_refused": "呢個用戶已經被管理員 {user} 踢出本群。\n\nThe user has been removed from group by {user}.",
         "challenge_strict_mode": false,
@@ -102,8 +102,8 @@
         "msg_refuse_manually": "共伊逐出",
         "msg_permission_denied": "汝伓是管理員",
         "msg_bot_no_permission": "操作有賺，可能機器儂其權限無夠",
-        "msg_approved": "汝已經乞管理員 {user} 人工通過，歡迎加裡！\n\nNṳ̄ ī-gĭng ké̤ṳk guāng-lī-uòng {user} ìng-gĕ̤ng tŭng-guó, huăng-ngìng gă-diē!\n\nWelcome to this group! You were approved by {user} manually.",
-        "msg_refused": "這隻用戶已經乞管理員 {user} 逐出本羣。\n\nCī-ciáh ê̤ṳng-hô ī-gĭng ké̤ṳk guāng-lī-uòng {user} dṳ̆k chók buōng-gùng.\n\nThe user has been removed from group by {user}.",
+        "msg_approved": "汝已經乞管理員 {user} 人工通過，歡迎加裡！\n\nNṳ̄ ī-gĭng ké̤ṳk guāng-lī-uòng {user} ìng-gĕ̤ng tŭng-guó, huăng-ngìng gă-diē!\n\nWelcome to this group! You were approved by {user} manually.",
+        "msg_refused": "這隻用戶已經乞管理員 {user} 逐出本羣。\n\nCī-ciáh ê̤ṳng-hô ī-gĭng ké̤ṳk guāng-lī-uòng {user} dṳ̆k chók buōng-gùng.\n\nThe user has been removed from group by {user}.",
         "challenge_strict_mode": false,
         "challenge_timeout": 180,
         "challenge_timeout_action": "restrict",
