@@ -73,7 +73,7 @@
         "msg_challenge_not_for_you": "呢次驗證唔係針對你",
         "msg_challenge": "{target} 你好，我哋開咗驗證功能，請喺 {timeout} 秒內撳下面嘅掣嚟完成驗證：\n{challenge}\n\nHi! The group has enabled CAPTCHA, please click one of the buttons to answer the following question:\n{challenge}",
         "msg_challenge_passed": "{target} 已經成功通過驗證，歡迎加入！\n如果仲係講唔到嘢，試下重啟 Telegram 客戶端啦。\n\nWelcome to this group! You have passed the CAPTCHA. If you cannot send messages, please restart the Telegram client.",
-        "msg_challenge_mercy_passed": "{target} 答錯咗，但係我哋仍然認為阁下係真人，歡迎加入！\n如果仲係講唔到嘢，試下重啟 Telegram 客戶端啦。\n\nWelcome to this group! You chose a wrong button but we still recognize you as a human.\nIf you cannot send messages, please restart the Telegram client.",
+        "msg_challenge_mercy_passed": "{target} 答錯咗，但係我哋仍然認為你係真人，歡迎加入！\n如果仲係講唔到嘢，試下重啟 Telegram 客戶端啦。\n\nWelcome to this group! You chose a wrong button but we still recognize you as a human.\nIf you cannot send messages, please restart the Telegram client.",
         "msg_challenge_failed": "{target} 通過唔到驗證，如果你係真人，請私訊聯繫群管。\n\nSorry, you failed the CAPTCHA. To try again, please leave and rejoin.",
         "msg_approve_manually": "俾佢入嚟",
         "msg_refuse_manually": "踢佢出去",
