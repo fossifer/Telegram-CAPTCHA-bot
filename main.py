@@ -60,6 +60,11 @@ async def challenge_user(event):
     elif not event.user_joined:
         return None
 
+    if target is None or chat is None:
+        logging.warning(f'Cannot fetch chat and/or target info on challenge_user; the event object is logged below')
+        logging.info(str(event))
+        return
+
     # get previous restriction data
     async with upr_lock:
         key = '{chat}|{user}'.format(chat=chat.id, user=target.id)
@@ -83,7 +88,7 @@ async def challenge_user(event):
             send_gifs=True, send_games=True, send_inline=True,
             send_polls=True, embed_links=True, invite_users=True
         )))
-    except errors.ChatAdminRequiredError:
+    except (errors.ChatAdminRequiredError, errors.UserAdminInvalidError) as e:
         return None
 
     async with config_lock:
@@ -156,7 +161,7 @@ async def handle_challenge_timeout(bot, delay, chat, user, bot_msg):
         else:  # restrict
             # assume that the user is already restricted (when joining the group)
             pass
-    except errors.ChatAdminRequiredError:
+    except (errors.ChatAdminRequiredError, errors.UserAdminInvalidError) as e:
         # lose our privilege between villain joining and timeout
         pass
 
@@ -234,7 +239,7 @@ async def handle_challenge_response(event):
         if user_ans == '+':
             try:
                 await lift_restriction(bot, chat, target)
-            except errors.ChatAdminRequiredError:
+            except (errors.ChatAdminRequiredError, errors.UserAdminInvalidError) as e:
                 await event.answer(message=group_config['msg_bot_no_permission'])
             try:
                 await event.edit(text=group_config['msg_approved'].format(user=username), 
@@ -244,7 +249,7 @@ async def handle_challenge_response(event):
         else:  # user_ans == '-'
             try:
                 await bot(EditBannedRequest(chat, target, ChatBannedRights(until_date=None, view_messages=True)))
-            except errors.ChatAdminRequiredError:
+            except (errors.ChatAdminRequiredError, errors.UserAdminInvalidError) as e:
                 await event.answer(message=group_config['msg_bot_no_permission'])
                 return None
             try:
@@ -282,7 +287,7 @@ async def handle_challenge_response(event):
     if correct or not group_config.get('challenge_strict_mode'):
         try:
             await lift_restriction(bot, chat, target)
-        except errors.ChatAdminRequiredError:
+        except (errors.ChatAdminRequiredError, errors.UserAdminInvalidError) as e:
             # This my happen when the bot is deop-ed after the user join
             # and before the user click the button
             # TODO: design messages for this occation
