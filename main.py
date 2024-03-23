@@ -9,6 +9,7 @@ from telethon import TelegramClient, events, errors
 from telethon.tl.functions.channels import DeleteMessagesRequest, EditBannedRequest, GetParticipantRequest
 from telethon.tl.functions.messages import EditMessageRequest
 from telethon.tl.types import ChatBannedRights, ChannelParticipantCreator, KeyboardButtonCallback
+from telethon.utils import get_display_name
 
 logging.basicConfig(level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -107,13 +108,16 @@ async def challenge_user(event):
 
     timeout = group_config['challenge_timeout']
 
+    target_string = f'[{get_display_name(target)}](tg://user?id={target.id}) (`{target.id}`)'
     try:
         bot_msg_id = await event.reply(message=group_config['msg_challenge'].format(
-            timeout=timeout, challenge=challenge.qus()), buttons=challenge_to_buttons(challenge))
+                timeout=timeout, challenge=challenge.qus(), target=target_string),
+            buttons=challenge_to_buttons(challenge), parse_mode='md')
         bot_msg_id = bot_msg_id.id
     except errors.BadRequestError:  # msg to reply not found
         bot_msg_id = await event.respond(message=group_config['msg_challenge'].format(
-            timeout=timeout, challenge=challenge.qus()), buttons=challenge_to_buttons(challenge))
+                timeout=timeout, challenge=challenge.qus(), target=target_string),
+            buttons=challenge_to_buttons(challenge), parse_mode='md')
         bot_msg_id = bot_msg_id.id
 
     timeout_event = asyncio.create_task(
@@ -143,8 +147,10 @@ async def handle_challenge_timeout(bot, delay, chat, user, bot_msg):
 
     try:
         # note that the arg name is 'reply_markup', not 'buttons'
-        await bot(EditMessageRequest(message=group_config['msg_challenge_failed'],
-            peer=chat, id=bot_msg, reply_markup=None))
+        target_id_string = f'[{user.id}](tg://user?id={user.id})'
+        message_text = group_config['msg_challenge_failed'].format(target=target_id_string)
+        await bot.edit_message(entity=chat, message=bot_msg, text=message_text,
+                               parse_mode='md', buttons=None)
     except errors.BadRequestError:
         # it is very possible that the message has been deleted
         # so assume the case has been dealt by group admins, simply ignore it
@@ -201,8 +207,7 @@ async def handle_challenge_response(event):
     bot = event.client
     chat = event.chat
     user = await event.get_sender()
-    username = '@'+user.username if user.username else (user.first_name +
-        (' ' + user.last_name if user.last_name else ''))
+    username = get_display_name(user)
     bot_msg = event.message_id
 
     async with config_lock:
@@ -211,7 +216,7 @@ async def handle_challenge_response(event):
     # handle manual approval/refusal by group admins
     if user_ans in ['+', '-']:
         try:
-            participant = await bot(GetParticipantRequest(channel=chat, user_id=user))
+            participant = await bot(GetParticipantRequest(chat, user))
             participant = participant.participant
         except errors.UserNotParticipantError:
             logging.warning(f'UserNotParticipantError on handle_challenge_response: user={user.id}, chat={chat.id}')
@@ -242,8 +247,10 @@ async def handle_challenge_response(event):
             except (errors.ChatAdminRequiredError, errors.UserAdminInvalidError) as e:
                 await event.answer(message=group_config['msg_bot_no_permission'])
             try:
-                await event.edit(text=group_config['msg_approved'].format(user=username), 
-                    buttons=None)
+                target_entity = await bot.get_entity(target)
+                target_string = f'[{get_display_name(target_entity)}](tg://user?id={target}) (`{target}`)'
+                await event.edit(text=group_config['msg_approved'].format(
+                    user=username, target=target_string), buttons=None)
             except errors.BadRequestError:   # message to edit not found
                 pass
         else:  # user_ans == '-'
@@ -253,8 +260,10 @@ async def handle_challenge_response(event):
                 await event.answer(message=group_config['msg_bot_no_permission'])
                 return None
             try:
-                await event.edit(text=group_config['msg_refused'].format(user=username),
-                    buttons=None)
+                # Omit link to user here as it may be username spam
+                target_string = f'`{target}`'
+                await event.edit(text=group_config['msg_refused'].format(
+                    user=username, target=target_string), buttons=None)
             except errors.BadRequestError:   # message to edit not found
                 pass
 
@@ -293,13 +302,18 @@ async def handle_challenge_response(event):
             # TODO: design messages for this occation
             pass
         msg = 'msg_challenge_passed' if correct else 'msg_challenge_mercy_passed'
+        target_entity = await bot.get_entity(target)
+        target_string = f'[{get_display_name(target_entity)}](tg://user?id={target}) (`{target}`)'
+        message_text = group_config[msg].format(target=target_string)
         if correct:
             if group_config['delete_passed_challenge']:
                 delete = asyncio.create_task(safe_delete_message(bot, group_config['delete_passed_challenge_interval'], channel=chat, id=[bot_msg]))
     else:
         msg = 'msg_challenge_failed'
+        target_id_string = f'[{target}](tg://user?id={target})'
+        message_text = group_config[msg].format(target=target_id_string)
 
-    await event.edit(text=group_config[msg], buttons=None)
+    await event.edit(text=message_text, buttons=None, parse_mode='md')
     if delete: await delete
 
 
